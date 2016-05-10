@@ -9,7 +9,7 @@ script_dir=$(getDir)
 
 usage() { echo "Usage: $0 [-r ref.fa] [-v path of vcflib] [-i vcfFile] vcfFile1" 1>&2; exit 1; }
 
-while getopts ":r:v:i:" o; do
+while getopts ":r:v:i:b:" o; do
     case "${o}" in
         r)
             Ref=${OPTARG}
@@ -20,6 +20,9 @@ while getopts ":r:v:i:" o; do
         i)
             cVcf=${OPTARG}
             ;;
+        b)
+            bedPath=${OPTARG}
+            ;;
         *)
             usage
             ;;
@@ -29,6 +32,12 @@ shift $((OPTIND-1))
 
 if [ -z "${Ref}" ] || [ -z "${vcflibPath}" ] || [ -z "${cVcf}" ]; then
     usage
+fi
+
+if [ ! -z "${bedPath}" ]; then
+	bedPathArg="-b $bedPath"
+else
+	bedPathArg=""
 fi
 
 vcfFile1=$1
@@ -59,6 +68,6 @@ for vcf in $@ $cVcf; do
 done
 
 for chr in $chrs; do
-	qsub -q hipipe.q -N $jobs_prefix.venn.comp.${name_cvcf}_${name1}.$chr -hold_jid $jobs_prefix.venn.catpre.* -o .venn/log/venn.comp.${name_cvcf}_${name1}.$chr.out -e .venn/log/venn.comp.${name_cvcf}_${name1}.$chr.err -cwd ${script_dir}/complement.sh -f $Ref -v $vcflibPath -r $chr ${name_cvcf} ${name1} all
+	qsub -q hipipe.q -N $jobs_prefix.venn.comp.${name_cvcf}_${name1}.$chr -hold_jid $jobs_prefix.venn.catpre.* -o .venn/log/venn.comp.${name_cvcf}_${name1}.$chr.out -e .venn/log/venn.comp.${name_cvcf}_${name1}.$chr.err -cwd ${script_dir}/complement.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name_cvcf} ${name1} all
 done
 qsub -q hipipe.q -N $jobs_prefix.venn.catInt.${name_cvcf}_${name1} -hold_jid $jobs_prefix.venn.comp.${name_cvcf}_${name1}.* -o .venn/log/venn.comp.catInt.${name_cvcf}_${name1}.out -e .venn/log/venn.comp.catInt.${name_cvcf}_${name1}.err -cwd ${script_dir}/catComp.sh $name_cvcf $name1 all

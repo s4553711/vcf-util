@@ -9,13 +9,16 @@ script_dir=$(getDir)
 
 usage() { echo "Usage: $0 [-r ref.fa] [-v path of vcflib] vcfFile1 vcfFile2 vcfFile3" 1>&2; exit 1; }
 
-while getopts ":r:v:" o; do
+while getopts ":r:v:b:" o; do
     case "${o}" in
         r)
             Ref=${OPTARG}
             ;;
         v)
             vcflibPath=${OPTARG}
+            ;;
+        b)
+            bedPath=${OPTARG}
             ;;
         *)
             usage
@@ -28,12 +31,20 @@ if [ -z "${Ref}" ] || [ -z "${vcflibPath}" ]; then
     usage
 fi
 
+if [ ! -z "${bedPath}" ]; then
+	bedPathArg="-b $bedPath"
+else
+	bedPathArg=""
+fi
+
 vcfFile1=$1
 vcfFile2=$2
 vcfFile3=$3
 name1=`basename $vcfFile1 | sed -e 's/.vcf//g'`
 name2=`basename $vcfFile2 | sed -e 's/.vcf//g'`
-name3=`basename $vcfFile3 | sed -e 's/.vcf//g'`
+if [ "$#" -eq 3 ]; then
+	name3=`basename $vcfFile3 | sed -e 's/.vcf//g'`
+fi
 Vcfallelicprimitives=${vcflibPath}/bin/vcfallelicprimitives
 Vcfbreakmulti=${vcflibPath}/bin/vcfbreakmulti
 Vcfintersect=${vcflibPath}/bin/vcfintersect
@@ -58,19 +69,19 @@ for vcf in $@; do
 done
 
 for chr in $chrs; do
-	qsub -q hipipe.q -N venn.intersect.${name1}_${name2}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name2}.$chr.out -e .venn/log/venn.intersect.${name1}_${name2}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh -f $Ref -v $vcflibPath -r $chr ${name1} ${name2} all
+	qsub -q hipipe.q -N venn.intersect.${name1}_${name2}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name2}.$chr.out -e .venn/log/venn.intersect.${name1}_${name2}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name1} ${name2} all
 done
 qsub -q hipipe.q -N venn.catInt.${name1}_${name2} -hold_jid venn.intersect.${name1}_${name2}.* -o .venn/log/venn.catInt.${name1}_${name2}.out -e .venn/log/venn.catInt.${name1}_${name2}.err -cwd ${script_dir}/catInt.sh $name1 $name2 all
 
 if [ "$#" -eq 3 ]; then
 	echo "we have 3 vcfs to compare"
 	for chr in $chrs; do
-		qsub -q hipipe.q -N venn.intersect.${name1}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name3}.$chr.out -e .venn/log/venn.intersect.${name1}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh -f $Ref -v $vcflibPath -r $chr ${name1} ${name3} all
+		qsub -q hipipe.q -N venn.intersect.${name1}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name3}.$chr.out -e .venn/log/venn.intersect.${name1}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name1} ${name3} all
 	done
 	qsub -q hipipe.q -N venn.catInt.${name1}_${name3} -hold_jid venn.intersect.${name1}_${name3}.* -o .venn/log/venn.catInt.${name1}_${name3}.out -e .venn/log/venn.catInt.${name1}_${name3}.err -cwd ${script_dir}/catInt.sh $name1 $name3 all
 
 	for chr in $chrs; do
-		qsub -q hipipe.q -N venn.intersect.${name2}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name2}_${name3}.$chr.out -e .venn/log/venn.intersect.${name2}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh -f $Ref -v $vcflibPath -r $chr ${name2} ${name3} all
+		qsub -q hipipe.q -N venn.intersect.${name2}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name2}_${name3}.$chr.out -e .venn/log/venn.intersect.${name2}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name2} ${name3} all
 	done
 	qsub -q hipipe.q -N venn.catInt.${name2}_${name3} -hold_jid venn.intersect.${name2}_${name3}.* -o .venn/log/venn.catInt.${name2}_${name3}.out -e .venn/log/venn.catInt.${name2}_${name3}.err -cwd ${script_dir}/catInt.sh $name2 $name3 all
 
