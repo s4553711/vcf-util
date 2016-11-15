@@ -7,9 +7,9 @@ getDir() {
 }
 script_dir=$(getDir)
 
-usage() { echo "Usage: $0 [-r ref.fa] [-v path of vcflib] vcfFile1 vcfFile2 vcfFile3" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-r ref.fa] [-v path of vcflib] [-c chromosome list file] vcfFile1 vcfFile2 vcfFile3" 1>&2; exit 1; }
 
-while getopts ":r:v:b:" o; do
+while getopts ":r:v:b:c:" o; do
     case "${o}" in
         r)
             Ref=${OPTARG}
@@ -19,6 +19,9 @@ while getopts ":r:v:b:" o; do
             ;;
         b)
             bedPath=${OPTARG}
+            ;;
+	c)
+            chrSource=${OPTARG}
             ;;
         *)
             usage
@@ -55,7 +58,9 @@ mkdir -p .venn/data
 touch ".venn/start"
 
 echo "preprocessing ..."
-chrs="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y MT GL000207.1 GL000226.1 GL000229.1 GL000231.1 GL000210.1 GL000239.1 GL000235.1 GL000201.1 GL000247.1 GL000245.1 GL000197.1 GL000203.1 GL000246.1 GL000249.1 GL000196.1 GL000248.1 GL000244.1 GL000238.1 GL000202.1 GL000234.1 GL000232.1 GL000206.1 GL000240.1 GL000236.1 GL000241.1 GL000243.1 GL000242.1 GL000230.1 GL000237.1 GL000233.1 GL000204.1 GL000198.1 GL000208.1 GL000191.1 GL000227.1 GL000228.1 GL000214.1 GL000221.1 GL000209.1 GL000218.1 GL000220.1 GL000213.1 GL000211.1 GL000199.1 GL000217.1 GL000216.1 GL000215.1 GL000205.1 GL000219.1 GL000224.1 GL000223.1 GL000195.1 GL000212.1 GL000222.1 GL000200.1 GL000193.1 GL000194.1 GL000225.1 GL000192.1 NC_007605 hs37d5"
+#chrs="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y MT GL000207.1 GL000226.1 GL000229.1 GL000231.1 GL000210.1 GL000239.1 GL000235.1 GL000201.1 GL000247.1 GL000245.1 GL000197.1 GL000203.1 GL000246.1 GL000249.1 GL000196.1 GL000248.1 GL000244.1 GL000238.1 GL000202.1 GL000234.1 GL000232.1 GL000206.1 GL000240.1 GL000236.1 GL000241.1 GL000243.1 GL000242.1 GL000230.1 GL000237.1 GL000233.1 GL000204.1 GL000198.1 GL000208.1 GL000191.1 GL000227.1 GL000228.1 GL000214.1 GL000221.1 GL000209.1 GL000218.1 GL000220.1 GL000213.1 GL000211.1 GL000199.1 GL000217.1 GL000216.1 GL000215.1 GL000205.1 GL000219.1 GL000224.1 GL000223.1 GL000195.1 GL000212.1 GL000222.1 GL000200.1 GL000193.1 GL000194.1 GL000225.1 GL000192.1 NC_007605 hs37d5"
+#chrs="chr1 chr2 chr3 chr4 chr5 chr6 chr7 chr8 chr9 chr10 chr11 chr12 chr13 chr14 chr15 chr16 chr17 chr18 chr19 chr20 chr21 chr22 chrX chrY chrM GL000207.1 GL000226.1 GL000229.1 GL000231.1 GL000210.1 GL000239.1 GL000235.1 GL000201.1 GL000247.1 GL000245.1 GL000197.1 GL000203.1 GL000246.1 GL000249.1 GL000196.1 GL000248.1 GL000244.1 GL000238.1 GL000202.1 GL000234.1 GL000232.1 GL000206.1 GL000240.1 GL000236.1 GL000241.1 GL000243.1 GL000242.1 GL000230.1 GL000237.1 GL000233.1 GL000204.1 GL000198.1 GL000208.1 GL000191.1 GL000227.1 GL000228.1 GL000214.1 GL000221.1 GL000209.1 GL000218.1 GL000220.1 GL000213.1 GL000211.1 GL000199.1 GL000217.1 GL000216.1 GL000215.1 GL000205.1 GL000219.1 GL000224.1 GL000223.1 GL000195.1 GL000212.1 GL000222.1 GL000200.1 GL000193.1 GL000194.1 GL000225.1 GL000192.1 NC_007605 hs37d5"
+chrs=$(cat $chrSource)
 for vcf in $@; do
 	name=`basename $vcf | sed -e 's/.vcf//g'`
 	for chr in $chrs; do
@@ -65,28 +70,28 @@ done
 
 for vcf in $@; do
 	name=`basename $vcf | sed -e 's/.vcf//g'`
-	qsub -q hipipe.q -N venn.catpre.$name -hold_jid venn.cleanup.* -o .venn/log/venn.catpre.$name.out -e .venn/log/venn.catpre.$name.err -cwd ${script_dir}/catPreProcess.sh $name
+	qsub -q hipipe.q -N venn.catpre.$name -hold_jid venn.cleanup.* -o .venn/log/venn.catpre.$name.out -e .venn/log/venn.catpre.$name.err -cwd ${script_dir}/catPreProcess.sh $name $chrSource
 done
 
 for chr in $chrs; do
 	qsub -q hipipe.q -N venn.intersect.${name1}_${name2}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name2}.$chr.out -e .venn/log/venn.intersect.${name1}_${name2}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name1} ${name2} all
 done
-qsub -q hipipe.q -N venn.catInt.${name1}_${name2} -hold_jid venn.intersect.${name1}_${name2}.* -o .venn/log/venn.catInt.${name1}_${name2}.out -e .venn/log/venn.catInt.${name1}_${name2}.err -cwd ${script_dir}/catInt.sh $name1 $name2 all
+qsub -q hipipe.q -N venn.catInt.${name1}_${name2} -hold_jid venn.intersect.${name1}_${name2}.* -o .venn/log/venn.catInt.${name1}_${name2}.out -e .venn/log/venn.catInt.${name1}_${name2}.err -cwd ${script_dir}/catInt.sh $name1 $name2 all $chrSource
 
 if [ "$#" -eq 3 ]; then
 	echo "we have 3 vcfs to compare"
 	for chr in $chrs; do
 		qsub -q hipipe.q -N venn.intersect.${name1}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name1}_${name3}.$chr.out -e .venn/log/venn.intersect.${name1}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name1} ${name3} all
 	done
-	qsub -q hipipe.q -N venn.catInt.${name1}_${name3} -hold_jid venn.intersect.${name1}_${name3}.* -o .venn/log/venn.catInt.${name1}_${name3}.out -e .venn/log/venn.catInt.${name1}_${name3}.err -cwd ${script_dir}/catInt.sh $name1 $name3 all
+	qsub -q hipipe.q -N venn.catInt.${name1}_${name3} -hold_jid venn.intersect.${name1}_${name3}.* -o .venn/log/venn.catInt.${name1}_${name3}.out -e .venn/log/venn.catInt.${name1}_${name3}.err -cwd ${script_dir}/catInt.sh $name1 $name3 all $chrSource
 
 	for chr in $chrs; do
 		qsub -q hipipe.q -N venn.intersect.${name2}_${name3}.$chr -hold_jid venn.catpre.* -o .venn/log/venn.intersect.${name2}_${name3}.$chr.out -e .venn/log/venn.intersect.${name2}_${name3}.$chr.err -cwd ${script_dir}/intersect_dispatch.sh $bedPathArg -f $Ref -v $vcflibPath -r $chr ${name2} ${name3} all
 	done
-	qsub -q hipipe.q -N venn.catInt.${name2}_${name3} -hold_jid venn.intersect.${name2}_${name3}.* -o .venn/log/venn.catInt.${name2}_${name3}.out -e .venn/log/venn.catInt.${name2}_${name3}.err -cwd ${script_dir}/catInt.sh $name2 $name3 all
+	qsub -q hipipe.q -N venn.catInt.${name2}_${name3} -hold_jid venn.intersect.${name2}_${name3}.* -o .venn/log/venn.catInt.${name2}_${name3}.out -e .venn/log/venn.catInt.${name2}_${name3}.err -cwd ${script_dir}/catInt.sh $name2 $name3 all $chrSource
 
 	for chr in $chrs; do
 		qsub -q hipipe.q -N venn.intersect.${name1}_${name2}_${name3}.$chr -hold_jid venn.catInt.${name1}_${name2} -o .venn/log/venn.intersect.${name1}_${name2}_${name3}.$chr.out -e .venn/log/venn.intersect.${name1}_${name2}_${name3}.$chr.err -cwd ${script_dir}/intersect_to_group_dispatch.sh -f $Ref -v $vcflibPath -r $chr ${name1} ${name2} ${name3} all
 	done
-	qsub -q hipipe.q -N venn.catInt.group.${name1}_${name2}_${name3} -hold_jid venn.intersect.${name1}_${name2}_${name3}.* -o .venn/log/venn.catInt.group.${name1}_${name2}_${name3}.out -e .venn/log/venn.catInt.group.${name1}_${name2}_${name3}.err -cwd ${script_dir}/catInt-group.sh $name1 $name2 $name3 all
+	qsub -q hipipe.q -N venn.catInt.group.${name1}_${name2}_${name3} -hold_jid venn.intersect.${name1}_${name2}_${name3}.* -o .venn/log/venn.catInt.group.${name1}_${name2}_${name3}.out -e .venn/log/venn.catInt.group.${name1}_${name2}_${name3}.err -cwd ${script_dir}/catInt-group.sh $name1 $name2 $name3 all $chrSource
 fi
