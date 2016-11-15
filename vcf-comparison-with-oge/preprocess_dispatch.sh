@@ -34,6 +34,8 @@ Vcfuniq=${vcflibPath}/bin/vcfuniq
 Vcffilter=${vcflibPath}/bin/vcffilter
 name=`basename $vcfFile | sed -e 's/.vcf//g'`
 
+echo "> cat $vcfFile"
+echo "> ls -al "$(ls -al $vcfFile)
 ### break multi and allelic primitives###
 cat $vcfFile | grep "^#\|^$chrosome\s" | ${Vcfallelicprimitives} | ${Vcfbreakmulti} | ${Vcfallelicprimitives} | ${Vcfuniq} > .venn/${name}.${chrosome}.decomplx.brk.decomplx.vcf
 #cat $vcfFile | grep "^#\|^$chrosome\s" | ${Vcfallelicprimitives} | ${Vcfbreakmulti} | ${Vcfallelicprimitives} > .venn/${name}.${chrosome}.decomplx.brk.decomplx.vcf
